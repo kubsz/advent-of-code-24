@@ -1,29 +1,69 @@
+import fs from "fs";
+import path from "path";
 import { speedygonzalez } from "../utils";
-import { getLists } from "../1/lib/utils";
 
-const entry = () => {
-  // already sorted ascending
-  const [list1, list2] = getLists();
+const LEVELS_FILE_PATH = path.join(__dirname, "levels.txt");
 
-  let similarity = 0;
+const theresLevelsToit = () => {
+  const rawFile = fs.readFileSync(LEVELS_FILE_PATH, "utf8");
+  return rawFile.split(/\n/).map((line) => line.split(" ").map(Number));
+};
 
-  for (let i = 0; i < list1.length; i++) {
-    let matches = 0;
+const createSafeChecker = (allowMisplacements = 0) => {
+  const check = (nums: number[], direction = undefined) => {
+    if (nums.length === 1) return true;
 
-    for (let c = 0; c < list2.length; c++) {
-      if (list2[c] > list1[i]) break;
+    const [num1, num2, ...remaining] = nums;
+    const diff = num2 - num1;
 
-      if (list2[c] === list1[i]) {
-        // list2.splice(c, 1);
-        // c--;
-        matches++;
-      }
+    if (!direction) {
+      if (diff === 0) return false;
+      direction = diff > 0 ? "+" : "-";
     }
 
-    similarity += list1[i] * matches;
+    if (Math.abs(diff) > 3) return false;
+
+    if ((direction === "+" && diff <= 0) || (direction === "-" && diff >= 0)) {
+      return false;
+    }
+
+    return check([num2, ...remaining], direction);
+  };
+
+  const checkWithExceptions = (nums: number[]) => {
+    if (check(nums)) return true;
+
+    for (let i = 0; i < nums.length; i++) {
+      const newVariation = nums.slice(0, i).concat(nums.slice(i + 1));
+      if (check(newVariation)) return true;
+    }
+
+    return false;
+  };
+
+  return allowMisplacements > 0 ? checkWithExceptions : check;
+};
+
+const entry = () => {
+  const levels = theresLevelsToit();
+  let [safe1, safe2] = [0, 0];
+
+  for (const level of levels) {
+    const isSafe = createSafeChecker();
+    if (isSafe(level)) {
+      safe1++;
+    }
   }
 
-  console.log(`similarity score: ${similarity}`);
+  for (const level of levels) {
+    const isSafe = createSafeChecker(1);
+    if (isSafe(level)) {
+      safe2++;
+    }
+  }
+
+  console.log(`safe1 levels: ${safe1}`);
+  console.log(`safe2 levels: ${safe2}`);
 };
 
 speedygonzalez(entry);
